@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent template for the rhymehub supervisor.
+  Placeholders (all must be absolute paths, XML-escaped by the caller):
+    __SUPERVISOR_BIN__  path to rhymehub-supervisor, e.g. /Users/me/.rhymehub/current/bin/rhymehub-supervisor
+    __RHYMEHUB_HOME__   the rhymehub home directory, e.g. /Users/me/.rhymehub
+  services/supervisor/launchd.go (RenderLaunchdPlist) is the source of truth; this file must stay
+  equivalent to its output. Install with the rhymehub-supervisor install-launchd command, which only
+  bootstraps the job when its load option is set.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.rhymehub.supervisor</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>__SUPERVISOR_BIN__</string>
+		<string>run</string>
+		<string>--home</string>
+		<string>__RHYMEHUB_HOME__</string>
+	</array>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>RHYMEHUB_HOME</key>
+		<string>__RHYMEHUB_HOME__</string>
+	</dict>
+
+	<key>WorkingDirectory</key>
+	<string>__RHYMEHUB_HOME__</string>
+
+	<key>StandardOutPath</key>
+	<string>__RHYMEHUB_HOME__/logs/supervisor.out.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>__RHYMEHUB_HOME__/logs/supervisor.err.log</string>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>KeepAlive</key>
+	<true/>
+</dict>
+</plist>
