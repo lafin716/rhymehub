@@ -136,7 +136,7 @@ func Default() Config {
 		SupervisorAddr: "127.0.0.1:7781",
 		Scheduler: SchedulerConfig{
 			GlobalMaxRunning: 2,
-			DefaultPerAgent:  1,
+			DefaultPerAgent:  2,
 			PerAgent:         map[string]int{},
 		},
 	}

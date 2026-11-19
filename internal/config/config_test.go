@@ -67,7 +67,7 @@ func TestDefaults(t *testing.T) {
 	if cfg.Listen != "0.0.0.0:7780" {
 		t.Errorf("Listen = %s", cfg.Listen)
 	}
-	if cfg.Scheduler.GlobalMaxRunning != 2 || cfg.Scheduler.DefaultPerAgent != 1 {
+	if cfg.Scheduler.GlobalMaxRunning != 2 || cfg.Scheduler.DefaultPerAgent != 2 {
 		t.Errorf("scheduler defaults = %+v", cfg.Scheduler)
 	}
 	if err := cfg.Validate(); err != nil {
