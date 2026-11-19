@@ -1,6 +1,6 @@
 # PROGRESS — rhymehub v0.1.0
 
-Overall Progress: 85%
+Overall Progress: 100%
 
 ## Summary
 | Epic | Weight | Progress | Status | Owner |
@@ -25,6 +25,6 @@ Overall Progress: 85%
 | SDK-1 | SDK | shared + sdk-typescript + sdk-react + example app | sdk | MEDIUM | opus | medium | DONE | 100% | ARCH-1 | PASS: vitest shared 11, sdk 18, react 7, demo 9; tsup + vite builds OK |
 | CORE-2 | CORE | server API/auth/scheduler/notify/CLI/embed + release manager | core | CRITICAL | opus | high | DONE | 100% | CORE-1, AGENT-1 | PASS: leader ran gofmt/go build/go vet + go test ./... (373 tests, 20 pkgs) and make test exit 0; projects/releases/keys/audit/system/agents/push routes + supclient + persisted limits |
 | AGENT-2 | AGENT | worker (turn execution, validation, questions/denials) | foundation | HIGH | opus | high | DONE | 100% | CORE-1, AGENT-1 | PASS: leader ran go test ./services/worker/... ./internal/... (153 tests); worker -race clean (agent) |
-| E2E-1 | E2E | integration + independent reviews + fixes | leader | CRITICAL | opus | high | TODO | 0% | CORE-2, AGENT-2, WEB-1, SDK-1, SUP-1 | make test |
-| E2E-2 | E2E | real scenarios A–E + VALIDATION_REPORT | leader | CRITICAL | opus | high | TODO | 0% | E2E-1 | docs/VALIDATION_REPORT.md |
-| PUB-1 | PUB | README, CI, public repo, v0.1.0 release | leader | MEDIUM | opus | medium | TODO | 0% | E2E-2 | gh release view v0.1.0 |
+| E2E-1 | E2E | integration + independent reviews + fixes | leader | CRITICAL | opus | high | DONE | 100% | CORE-2, AGENT-2, WEB-1, SDK-1, SUP-1 | PASS: security review MEDIUM x3 fixed (2af4c7b); make test exit 0 (go 378 tests/20 pkgs, vitest 88) |
+| E2E-2 | E2E | real scenarios A–E + VALIDATION_REPORT | leader | CRITICAL | opus | high | DONE | 100% | E2E-1 | PASS: A-C real Claude 37/0 (after grant + setting-sources fixes, 2aa8c23); D-E 52/0; docs/VALIDATION_REPORT.md |
+| PUB-1 | PUB | README, CI, public repo, v0.1.0 release | leader | MEDIUM | opus | medium | DONE | 100% | E2E-2 | PASS: README/LICENSE/CI; public repo lafin716/rhymehub; v0.1.0 release with 4 tarballs + SHA256SUMS, smoke-tested |

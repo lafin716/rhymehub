@@ -146,7 +146,9 @@ Covered by automated tests (`make test`) and, where noted, by the end-to-end sce
 
 Auth is always on. Request and app text is never executed as an OS command. Agents run with a scrubbed
 environment, get no rhymehub credentials, and cannot read `$RHYMEHUB_HOME/secrets` or change approval and security
-policy. See [docs/SECURITY.md](docs/SECURITY.md).
+policy. Claude Code runs with `--setting-sources=` (no host user or repo `.claude` settings, hooks or allow
+rules), and an approved permission request grants only a narrow rule such as `Bash(go test:*)`, never bare `Bash`
+or a hard-denied command. See [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Documentation
 
