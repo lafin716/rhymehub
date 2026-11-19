@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -82,4 +83,29 @@ func (s *Store) PutSDKIdempotency(ctx context.Context, projectID, idemKey string
 		return fmt.Errorf("store: encode sdk idempotency: %w", err)
 	}
 	return s.SetSetting(ctx, sdkIdemKey(projectID, idemKey), string(b))
+}
+
+// LatestEventID returns the highest global task event id (0 when there are no events). SSE clients that connect
+// without Last-Event-ID start from this cursor.
+func (s *Store) LatestEventID(ctx context.Context) (int64, error) {
+	var id int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM task_events`).Scan(&id); err != nil {
+		return 0, fmt.Errorf("store: latest event id: %w", err)
+	}
+	return id, nil
+}
+
+// SetRequestPriority updates a request's priority (0 low .. 4 urgent per DATA_MODEL; out-of-range values are rejected).
+func (s *Store) SetRequestPriority(ctx context.Context, id string, priority int) error {
+	if priority < 0 || priority > 4 {
+		return fmt.Errorf("%w: priority %d out of range 0..4", domain.ErrInvalid, priority)
+	}
+	return s.writeTx(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `UPDATE requests SET priority = ?, updated_at = ? WHERE id = ?`,
+			priority, fmtTime(time.Now()), id)
+		if err != nil {
+			return err
+		}
+		return expectOne(res, "request "+id)
+	})
 }
