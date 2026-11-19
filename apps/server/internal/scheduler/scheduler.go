@@ -432,6 +432,24 @@ func (s *Scheduler) settle(ctx context.Context, id, code, detail string, retryab
 	return nil
 }
 
+// CancelTask stops the worker of a task that the API already moved to CANCELLED. It uses the pid tracked by
+// this process, falling back to the pid recorded on the task row. It never changes task state.
+func (s *Scheduler) CancelTask(ctx context.Context, taskID string) error {
+	s.mu.Lock()
+	pid, ok := s.active[taskID]
+	s.mu.Unlock()
+	if !ok {
+		t, err := s.store.GetTask(ctx, taskID)
+		if err != nil {
+			return err
+		}
+		pid = t.WorkerPID
+	}
+	s.stopWorker(pid)
+	s.forget(taskID)
+	return nil
+}
+
 func (s *Scheduler) stopWorker(pid int) {
 	if pid <= 0 || !s.alive(pid) {
 		return

@@ -311,6 +311,9 @@ func Merge(ctx context.Context, repo, base, branch, msg string) (string, error) 
 	return git(ctx, repo, "rev-parse", "HEAD")
 }
 
+// ValidateCloneURL reports whether url is acceptable for Clone (checked before any filesystem work).
+func ValidateCloneURL(url string) error { return validCloneURL(url) }
+
 // validCloneURL accepts https, ssh and scp-style git@ URLs. file://, ext:: and option-like strings are refused.
 func validCloneURL(u string) error {
 	if u == "" || strings.HasPrefix(u, "-") || strings.ContainsAny(u, " \t\r\n") {

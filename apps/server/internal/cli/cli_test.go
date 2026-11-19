@@ -62,10 +62,10 @@ func TestUsageAndUnknownCommands(t *testing.T) {
 	if code := Run(context.Background(), env, []string{"bogus"}); code != ExitUsage {
 		t.Fatalf("unknown command exit %d", code)
 	}
-	if code := Run(context.Background(), env, []string{"doctor"}); code != ExitUsage {
-		t.Fatalf("unimplemented command exit %d", code)
-	}
-	if !strings.Contains(errb.String(), "not implemented") {
-		t.Fatalf("stderr %q", errb.String())
+	// worker/register/doctor/status are dispatched to their implementations.
+	errb.Reset()
+	_ = Run(context.Background(), env, []string{"doctor"})
+	if strings.Contains(errb.String(), "not implemented") {
+		t.Fatalf("doctor not dispatched: stderr %q", errb.String())
 	}
 }

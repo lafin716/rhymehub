@@ -12,10 +12,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/lafin716/rhymehub/apps/server/internal/api"
+	"github.com/lafin716/rhymehub/apps/server/internal/notify"
+	"github.com/lafin716/rhymehub/apps/server/internal/release"
+	"github.com/lafin716/rhymehub/apps/server/internal/scheduler"
+	"github.com/lafin716/rhymehub/apps/server/internal/supclient"
 	"github.com/lafin716/rhymehub/internal/config"
 	"github.com/lafin716/rhymehub/internal/store"
 )
@@ -57,9 +63,14 @@ func Run(ctx context.Context, env Env, args []string) int {
 		return runMigrate(ctx, env, rest)
 	case "serve":
 		return runServe(ctx, env, rest)
-	case "worker", "register", "doctor", "status":
-		fmt.Fprintf(env.Stderr, "rhymehub %s: not implemented in this build\n", cmd)
-		return ExitUsage
+	case "worker":
+		return runWorker(ctx, env, rest)
+	case "register":
+		return runRegister(ctx, env, rest)
+	case "doctor":
+		return runDoctor(ctx, env, rest)
+	case "status":
+		return runStatus(ctx, env, rest)
 	default:
 		fmt.Fprintf(env.Stderr, "rhymehub: unknown command %q\n", cmd)
 		usage(env.Stderr)
@@ -185,7 +196,39 @@ func runServe(ctx context.Context, env Env, args []string) int {
 	defer st.Close()
 
 	logger := slog.New(slog.NewTextHandler(env.Stderr, nil))
-	srv, err := api.New(api.Options{Store: st, Config: cfg, Version: env.Version, Logger: logger})
+	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+	defer bgCancel()
+
+	sched, err := scheduler.New(scheduler.Options{
+		Store: st, Paths: p, Logger: logger,
+		Limits: loadPersistedLimits(ctx, st, scheduler.LimitsFromConfig(cfg.Scheduler), logger),
+	})
+	if err != nil {
+		fmt.Fprintln(env.Stderr, "serve: scheduler:", err)
+		return ExitFailure
+	}
+	notifier, err := notify.New(notify.Options{Store: st, Paths: p, Logger: logger})
+	if err != nil {
+		fmt.Fprintln(env.Stderr, "serve: notify:", err)
+		return ExitFailure
+	}
+	rel := release.New(release.Options{Store: st, Paths: p, Config: cfg})
+	opts := api.Options{
+		Store: st, Config: cfg, Version: env.Version, Logger: logger, Paths: p,
+		Releaser: rel, ProjectReleaser: rel, Canceller: sched,
+		Scheduler: schedControl{sched}, Agents: newAgentDirectory(), Notifier: notifier,
+	}
+	// The supervisor token is shared through secrets/supervisor.token (written by the supervisor, mode 0600).
+	// It is never logged. Without it the update endpoints and POST /system/drain stay disabled.
+	if tok, err := os.ReadFile(filepath.Join(p.SecretsDir(), "supervisor.token")); err == nil {
+		if t := strings.TrimSpace(string(tok)); t != "" {
+			opts.Supervisor = supclient.New(cfg.SupervisorAddr, t, &http.Client{Timeout: 15 * time.Minute})
+			opts.SupervisorToken = t
+		}
+	}
+	srv, err := api.New(opts)
 	if err != nil {
 		fmt.Fprintln(env.Stderr, "serve:", err)
 		return ExitFailure
@@ -196,10 +239,26 @@ func runServe(ctx context.Context, env Env, args []string) int {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	go func() {
+		if err := sched.Run(bgCtx); err != nil && bgCtx.Err() == nil {
+			logger.Error("scheduler stopped", "err", err)
+		}
+	}()
+	go func() {
+		if err := notifier.Run(bgCtx); err != nil && bgCtx.Err() == nil {
+			logger.Error("notification delivery stopped", "err", err)
+		}
+	}()
+	go (&notificationWatcher{st: st, svc: notifier, tick: time.Second, log: logger}).Run(bgCtx)
+
 	errCh := make(chan error, 1)
-	go func() { errCh <- httpSrv.ListenAndServe() }()
+	go func() {
+		if cfg.TLSCert != "" {
+			errCh <- httpSrv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey)
+			return
+		}
+		errCh <- httpSrv.ListenAndServe()
+	}()
 	logger.Info("rhymehub serving", "listen", cfg.Listen, "version", env.Version)
 
 	select {
@@ -211,6 +270,7 @@ func runServe(ctx context.Context, env Env, args []string) int {
 		return ExitOK
 	case <-sigCtx.Done():
 		srv.SetDraining(true)
+		sched.Drain(true)
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := httpSrv.Shutdown(shutdownCtx); err != nil {

@@ -530,3 +530,21 @@ func TestRhymehubSelfMissingKeyFailsBeforeMerge(t *testing.T) {
 		t.Fatalf("feed name = %q, want %q", feed.Name, feedName)
 	}
 }
+
+func TestReleaseTaskMergeOnlySkipsStrategy(t *testing.T) {
+	f := newFixture(t, StrategyTag, "", nil)
+	tk := f.approvedTask("mergeonly", func(wt string) { writeFile(t, filepath.Join(wt, "m.txt"), "m\n") })
+	if err := f.mgr.ReleaseTask(f.ctx, tk.ID, false); err != nil {
+		t.Fatalf("merge-only: %v", err)
+	}
+	got := f.task(tk.ID)
+	if got.State != domain.StateCompleted {
+		t.Fatalf("state = %s, want COMPLETED", got.State)
+	}
+	if n := countEvents(f.events(tk.ID), domain.EventMerge); n != 1 {
+		t.Fatalf("merge events = %d, want 1", n)
+	}
+	if n := len(f.releases()); n != 0 {
+		t.Fatalf("releases = %d, want 0 for merge-only", n)
+	}
+}

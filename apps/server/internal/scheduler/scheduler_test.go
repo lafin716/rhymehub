@@ -436,3 +436,18 @@ func TestWorkerEnvScrubsSecrets(t *testing.T) {
 		t.Fatalf("RHYMEHUB_HOME appears %d times, want 1", count)
 	}
 }
+
+func TestCancelTaskTerminatesTrackedWorker(t *testing.T) {
+	h := newHarness(t, Limits{Global: 2, DefaultPerAgent: 2})
+	q := h.queue("x")
+	h.step()
+	if err := h.sched.CancelTask(context.Background(), q.ID); err != nil {
+		t.Fatalf("CancelTask: %v", err)
+	}
+	if !slices.Contains(h.os.terminatedPIDs(), 1001) {
+		t.Fatalf("terminated = %v, want 1001", h.os.terminatedPIDs())
+	}
+	if n := h.sched.ActiveWorkers(); n != 0 {
+		t.Fatalf("ActiveWorkers = %d, want 0", n)
+	}
+}

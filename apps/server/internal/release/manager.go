@@ -121,6 +121,13 @@ func failf(reason, format string, args ...any) *failure {
 // strategy. It returns nil when the task is COMPLETED (including when it already was). When the task ends in
 // FAILED it returns an error wrapping ErrFailed; the reason is in the task row and the task events.
 func (m *Manager) MergeAndRelease(ctx context.Context, taskID string) error {
+	return m.ReleaseTask(ctx, taskID, true)
+}
+
+// ReleaseTask implements the API Releaser contract. With release true it behaves as MergeAndRelease. With
+// release false the task is merged and completed without running the project's release strategy
+// (MERGING -> COMPLETED), which is how an approval with {"release": false} is honoured.
+func (m *Manager) ReleaseTask(ctx context.Context, taskID string, release bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -149,8 +156,10 @@ func (m *Manager) MergeAndRelease(ctx context.Context, taskID string) error {
 		}
 	}
 	if t.State == domain.StateMerging {
-		if f := m.preflight(p); f != nil {
-			return m.fail(ctx, taskID, domain.StateMerging, f)
+		if release {
+			if f := m.preflight(p); f != nil {
+				return m.fail(ctx, taskID, domain.StateMerging, f)
+			}
 		}
 		_, f, err := m.mergeTask(ctx, t, p)
 		if err != nil {
@@ -160,7 +169,7 @@ func (m *Manager) MergeAndRelease(ctx context.Context, taskID string) error {
 			return m.fail(ctx, taskID, domain.StateMerging, f)
 		}
 		next, key := domain.StateReleasing, "release:releasing:"+taskID
-		if p.ReleaseStrategy == StrategyNone {
+		if p.ReleaseStrategy == StrategyNone || !release {
 			next, key = domain.StateCompleted, "release:completed:"+taskID
 		}
 		t, err = m.st.TransitionTask(ctx, taskID, []domain.TaskState{domain.StateMerging}, next,
