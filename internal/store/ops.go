@@ -15,6 +15,10 @@ import (
 const releaseCols = `id, project_id, version, tag, strategy, task_ids, notes, status, artifacts, log,
 	created_by, COALESCE(approved_by, ''), created_at, updated_at`
 
+// releaseInsertCols mirrors releaseCols without the read-side COALESCE, which is invalid in an INSERT column list.
+const releaseInsertCols = `id, project_id, version, tag, strategy, task_ids, notes, status, artifacts, log,
+	created_by, approved_by, created_at, updated_at`
+
 func scanRelease(r rowScanner) (domain.Release, error) {
 	var rel domain.Release
 	var taskIDs, artifacts, status, created, updated string
@@ -85,7 +89,7 @@ func (s *Store) CreateRelease(ctx context.Context, rel domain.Release) (domain.R
 		return domain.Release{}, err
 	}
 	err = s.writeTx(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO releases(`+releaseCols+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		_, err := tx.ExecContext(ctx, `INSERT INTO releases(`+releaseInsertCols+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			rel.ID, rel.ProjectID, rel.Version, rel.Tag, rel.Strategy, taskIDs, rel.Notes, string(rel.Status),
 			artifacts, rel.Log, rel.CreatedBy, nullStr(rel.ApprovedBy), fmtTime(rel.CreatedAt), fmtTime(rel.UpdatedAt))
 		return duplicateErr(err, "release "+rel.Version)
