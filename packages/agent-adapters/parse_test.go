@@ -197,6 +197,9 @@ func TestClaudeBuildArgsNewSession(t *testing.T) {
 	if !contains(args, "--session-id") || contains(args, "--resume") {
 		t.Errorf("new session must use --session-id: %v", args)
 	}
+	if !contains(args, "--setting-sources=") {
+		t.Errorf("host user/project settings must not be loaded: %v", args)
+	}
 	if !strings.Contains(argWith(args, "--allowedTools="), "Bash(go test:*)") {
 		t.Errorf("allow grant missing: %v", args)
 	}

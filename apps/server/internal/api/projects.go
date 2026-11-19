@@ -14,6 +14,7 @@ import (
 
 	"github.com/lafin716/rhymehub/internal/domain"
 	"github.com/lafin716/rhymehub/internal/workspace"
+	adapters "github.com/lafin716/rhymehub/packages/agent-adapters"
 )
 
 const (
@@ -578,6 +579,9 @@ func normalizeTools(in []string) ([]string, error) {
 		}
 		if isForbiddenTool(t) {
 			return nil, badRequest("tool %q is globally forbidden", t)
+		}
+		if err := adapters.CheckGrant(t); err != nil {
+			return nil, badRequest("tool %q cannot be granted: too broad or hard-denied", t)
 		}
 		out = append(out, t)
 	}

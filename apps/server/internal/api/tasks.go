@@ -15,6 +15,7 @@ import (
 	"github.com/lafin716/rhymehub/internal/domain"
 	"github.com/lafin716/rhymehub/internal/store"
 	"github.com/lafin716/rhymehub/internal/workspace"
+	adapters "github.com/lafin716/rhymehub/packages/agent-adapters"
 )
 
 const (
@@ -463,13 +464,19 @@ func (s *Server) handlePermission(w http.ResponseWriter, r *http.Request, p *pri
 	}
 	var granted, refused []string
 	if body.Allow {
+		// Each denial becomes the narrowest grant rule (a Bash denial of "go test ./..." grants
+		// "Bash(go test:*)", never bare "Bash"). Rules that are forbidden, too broad or hard-denied are
+		// refused here so a stored grant can never make the next agent session fail to start.
 		for _, pt := range pending {
+			if pt.Tool == "" {
+				continue
+			}
+			rule, ok := adapters.GrantRule(pt.Tool, pt.Input)
 			switch {
-			case pt.Tool == "":
-			case isForbiddenTool(pt.Tool):
+			case !ok || isForbiddenTool(rule) || adapters.CheckGrant(rule) != nil:
 				refused = append(refused, pt.Tool)
-			case !slices.Contains(granted, pt.Tool):
-				granted = append(granted, pt.Tool)
+			case !slices.Contains(granted, rule):
+				granted = append(granted, rule)
 			}
 		}
 	}

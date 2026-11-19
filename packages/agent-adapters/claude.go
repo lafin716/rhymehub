@@ -109,7 +109,11 @@ func (a *claudeAdapter) buildArgs(opts SessionOptions, id string, resume bool, p
 		return nil, err
 	}
 	args := []string{"-p", safePrompt(prompt), "--output-format", "stream-json", "--verbose",
-		"--permission-mode", "acceptEdits"}
+		"--permission-mode", "acceptEdits",
+		// Load no user/project/local settings: the host user's hooks and allow rules, and a
+		// worktree .claude/settings.json the agent could edit, must not widen rhymehub's policy.
+		// Official CLI auth (keychain/OAuth) is unaffected.
+		"--setting-sources="}
 	if resume {
 		args = append(args, "--resume", id)
 	} else {
