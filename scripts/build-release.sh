@@ -2,6 +2,7 @@
 # Build a release tarball for the host platform:
 #   rhymehub-<version>-<os>-<arch>.tar.gz containing bin/rhymehub, bin/rhymehub-supervisor and VERSION.
 # Prints the sha256 of the tarball. Usage: scripts/build-release.sh <version> <outdir>
+# Run `make web` first: it builds the dashboard and packs the SDK tarballs that go:embed puts into the binary.
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then

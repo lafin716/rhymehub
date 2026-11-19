@@ -23,6 +23,8 @@ Minimum roles are noted per endpoint as `[dev]`, `[maint]`, `[admin]`; `[any]` =
 * `GET /healthz` → `{"status":"ok","version":"0.1.0","schemaVersion":1,"draining":false,"uptimeSec":12}`
 * `GET /api/v1/meta` → `{"version","needsSetup":bool}` (needsSetup = no users exist)
 * `POST /api/v1/setup` `{username,password}` – only when no user exists; creates admin.
+* `GET /api/v1/sdk/dist/{file}` → the embedded SDK tarball (`application/gzip`). Only names of the form
+  `rhymehub-(shared|sdk|react)-<semver>.tgz` are served; anything else (or a build without `make web`) is 404.
 
 ## Auth
 * `POST /auth/login` `{username,password}` → `{user}`; `POST /auth/logout`; `GET /auth/me` → `{user}`
@@ -46,6 +48,12 @@ stats:{openRequests,activeTasks,reviewReady,failed}, git:{branch,head,dirty,ahea
 * `GET /projects/{id}/keys` `[maint]`, `POST /projects/{id}/keys {name, allowedOrigins?}` → `{id,key,keyPrefix}`
   (key shown once), `DELETE /projects/{id}/keys/{keyId}` `[maint]`
 * `GET /projects/{id}/git` → `{branch, head, dirty, recentCommits:[{hash,subject,author,at}]}`
+* `GET /projects/{id}/sdk-prompt?serverUrl=` `[any]` → `{projectId, serverUrl, sdkVersion, sdkAvailable,
+  packages:[{name,file,url}], prompt, skill, skillPath}`. `prompt` is agent instructions (rendered from
+  `templates/sdk-widget-skill.md`) that vendor the SDK tarballs from `{serverUrl}/api/v1/sdk/dist/`, mount the
+  feedback widget and add `.env.example`; `skill` is the same text with Claude Code skill frontmatter, to be saved at
+  `skillPath` (`.claude/skills/rhymehub-sdk/SKILL.md`). Never contains keys or tokens. `serverUrl` defaults to the
+  request's scheme and host; an override must be a bare http(s) origin (else 400).
 
 ## Requests (Inbox)
 `Request = {id,projectId,source,type,title,description,priority,status,installationId,appVersion,platform,

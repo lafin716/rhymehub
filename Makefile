@@ -10,6 +10,9 @@ web:
 	pnpm -r --filter "./packages/**" build
 	pnpm --filter web build
 	rm -rf apps/server/web/dist && mkdir -p apps/server/web/dist && cp -R apps/web/dist/. apps/server/web/dist/
+	# SDK tarballs served by the core at /api/v1/sdk/dist/ (the packages are not on a registry)
+	rm -f apps/server/sdkdist/tarballs/*.tgz
+	for p in shared sdk-typescript sdk-react; do (cd packages/$$p && pnpm pack --pack-destination ../../apps/server/sdkdist/tarballs >/dev/null); done
 
 go:
 	mkdir -p bin

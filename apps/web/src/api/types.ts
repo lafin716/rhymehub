@@ -120,6 +120,24 @@ export interface CreatedProjectKey {
   keyPrefix: string;
 }
 
+export interface SdkPromptPackage {
+  name: string;
+  file: string;
+  url: string;
+}
+
+/** GET /projects/{id}/sdk-prompt: agent instructions that install the SDK and feedback widget. Never holds keys. */
+export interface SdkPrompt {
+  projectId: string;
+  serverUrl: string;
+  sdkVersion: string;
+  sdkAvailable: boolean;
+  packages: SdkPromptPackage[];
+  prompt: string;
+  skill: string;
+  skillPath: string;
+}
+
 export interface GitCommit {
   hash: string;
   subject: string;

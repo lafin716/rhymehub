@@ -18,6 +18,7 @@ func (s *Server) projectRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/projects/{id}/keys", s.need(domain.RoleMaintainer, s.handleListKeys))
 	mux.HandleFunc("POST /api/v1/projects/{id}/keys", s.need(domain.RoleMaintainer, s.handleCreateKey))
 	mux.HandleFunc("DELETE /api/v1/projects/{id}/keys/{keyId}", s.need(domain.RoleMaintainer, s.handleRevokeKey))
+	mux.HandleFunc("GET /api/v1/projects/{id}/sdk-prompt", s.need("", s.handleSDKPrompt))
 	mux.HandleFunc("POST /api/v1/projects/{id}/releases", s.need(domain.RoleMaintainer, s.handleManualRelease))
 	mux.HandleFunc("GET /api/v1/releases", s.need("", s.handleListReleases))
 	mux.HandleFunc("GET /api/v1/releases/{id}", s.need("", s.handleGetRelease))

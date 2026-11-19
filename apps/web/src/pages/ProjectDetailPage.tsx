@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { errorMessage } from '../api/client';
 import { endpoints } from '../api/endpoints';
 import type { Project, ProjectKey, ReleaseStrategy, Request, Release, TaskSummary } from '../api/types';
+import { SdkSetup } from '../components/SdkSetup';
 import { StateBadge } from '../components/StateBadge';
 import { Badge, Button, Card, Empty, ErrorMessage, Field, Input, PageHeader, Select, Spinner, Textarea } from '../components/ui';
 import { formatRelative, priorityLabel } from '../lib/format';
@@ -10,7 +11,7 @@ import { useAuth } from '../state/AuthContext';
 import { useConnection, useStreamEvent } from '../state/ConnectionContext';
 import { useAsync } from '../state/useApi';
 
-type Tab = 'overview' | 'tasks' | 'requests' | 'releases' | 'keys' | 'settings';
+type Tab = 'overview' | 'tasks' | 'requests' | 'releases' | 'keys' | 'sdk' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -18,6 +19,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'requests', label: 'Requests' },
   { id: 'releases', label: 'Releases' },
   { id: 'keys', label: 'SDK keys' },
+  { id: 'sdk', label: 'SDK setup' },
   { id: 'settings', label: 'Settings' },
 ];
 
@@ -71,6 +73,7 @@ export function ProjectDetailPage() {
       {tab === 'requests' ? <RequestsTab projectId={p.id} /> : null}
       {tab === 'releases' ? <ReleasesTab projectId={p.id} /> : null}
       {tab === 'keys' ? <KeysTab projectId={p.id} /> : null}
+      {tab === 'sdk' ? <SdkSetup projectId={p.id} /> : null}
       {tab === 'settings' ? <SettingsTab project={p} onSaved={(next) => project.setData(next)} /> : null}
     </>
   );

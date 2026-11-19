@@ -18,6 +18,7 @@ import type {
   RequestSource,
   RequestStatus,
   RequestType,
+  SdkPrompt,
   Role,
   SystemStatus,
   SystemUpdates,
@@ -72,6 +73,10 @@ export const endpoints = {
     apiRequest<CreatedProjectKey>(`/projects/${encodeURIComponent(id)}/keys`, { method: 'POST', body }),
   deleteProjectKey: (id: string, keyId: string) =>
     apiRequest<void>(`/projects/${encodeURIComponent(id)}/keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' }),
+  getSdkPrompt: (id: string, serverUrl?: string) =>
+    apiRequest<SdkPrompt>(
+      `/projects/${encodeURIComponent(id)}/sdk-prompt${serverUrl ? `?serverUrl=${encodeURIComponent(serverUrl)}` : ''}`,
+    ),
   projectGit: (id: string) => apiRequest<ProjectGit>(`/projects/${encodeURIComponent(id)}/git`),
   createProjectRelease: (id: string, body: { version?: string; notes?: string }) =>
     apiRequest<Release>(`/projects/${encodeURIComponent(id)}/releases`, { method: 'POST', body }),

@@ -89,7 +89,9 @@ rhymehub-supervisor <command> [--home dir]
 4. **Approve and release**: a Maintainer approves, rhymehub merges and runs the release strategy
    (`none`, `tag`, `command`, `self`). Auto-approve and auto-release are separate settings, both **off** by default.
 5. **In-app requests**: add the SDK to your app (`@rhymehub/sdk-react` `<Feedback/>`, or `@rhymehub/sdk`) with a
-   project key (`rhk_…`). Requests land in the Inbox and can create tasks automatically.
+   project key (`rhk_…`). Requests land in the Inbox and can create tasks automatically. The project's
+   **SDK setup** tab renders a prompt (or Claude Code skill) you paste into a coding agent in your app repository;
+   the agent vendors the SDK from this server and mounts the widget. You then put the key in `.env.local` yourself.
 
 See [examples/feedback-demo/README.md](examples/feedback-demo/README.md) for an SDK walkthrough, and
 [docs/MANUAL_octobooks.ko.md](docs/MANUAL_octobooks.ko.md) for a full Korean walkthrough using a real pnpm monorepo

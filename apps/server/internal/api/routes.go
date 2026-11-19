@@ -69,6 +69,8 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/sdk/requests/{id}", s.handleSDKGetRequest)
 	mux.HandleFunc("POST /api/v1/sdk/requests/{id}/answer", s.handleSDKAnswer)
 	mux.HandleFunc("GET /api/v1/sdk/releases/latest", s.handleSDKLatestRelease)
+	// Public SDK tarballs (MIT, no key): the packages are not on a registry, so apps download them from here.
+	mux.HandleFunc("GET /api/v1/sdk/dist/{file}", s.handleSDKDist)
 
 	// Unknown API paths get a JSON 404 instead of the dashboard HTML.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

@@ -311,6 +311,28 @@ octobooks 웹 UI(`packages/ui`, Vite + React)에 rhymehub 피드백 버튼을 �
 
 > 이 장의 변경은 octobooks 저장소를 수정합니다. 직접 하거나, 4장의 방법으로 rhymehub 작업으로 맡겨도 됩니다.
 
+### 7.0 빠른 방법: 대시보드의 SDK setup 탭 (에이전트가 자동 설치)
+
+7.2~7.5의 수작업을 에이전트에게 맡길 수 있습니다. octobooks뿐 아니라 다른 프로젝트에도 똑같이 쓸 수 있습니다.
+
+1. 대시보드 → 프로젝트 → **SDK setup** 탭을 엽니다.
+2. **rhymehub server URL**에 앱 개발 서버가 접근할 수 있는 주소를 넣고 **Update**를 누릅니다.
+   기본값은 지금 대시보드 주소입니다(예: `http://rich.tailf4a14e.ts.net:7780`).
+3. 둘 중 하나를 고릅니다.
+   - **Agent prompt**를 복사해 앱 저장소에서 실행 중인 Claude Code(또는 다른 코딩 에이전트)에 붙여 넣습니다.
+   - **Claude Code skill**을 앱 저장소의 `.claude/skills/rhymehub-sdk/SKILL.md`에 저장하고 "rhymehub 붙여줘"라고
+     요청합니다. 스킬은 저장소에 남으므로 나중에 다시 써도 됩니다.
+4. 에이전트가 하는 일:
+   - 스택 확인(React, 다른 JS, 그 외).
+   - `{서버}/api/v1/sdk/dist/`에서 SDK tarball을 `vendor/rhymehub/`로 내려받기.
+   - 패키지 매니저 overrides 설정과 래퍼 컴포넌트, 마운트.
+   - Vite `/api` 프록시, `.env.example`, `.gitignore` 정리.
+   - 타입체크, 린트, 테스트로 확인.
+5. 마지막으로 **직접** 7.1의 `rhk_` 키를 만들고 `.env.local`에 넣습니다. 프롬프트에는 키가 절대 들어가지 않으며,
+   에이전트도 실제 키를 다루지 않도록 지시되어 있습니다.
+
+아래 7.1~7.5는 같은 작업을 손으로 하는 방법입니다.
+
 ### 7.1 프로젝트 키 발급
 
 프로젝트 설정의 **SDK Keys**에서 키를 만듭니다. 키는 한 번만 표시됩니다.
