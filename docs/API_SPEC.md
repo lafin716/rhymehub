@@ -94,6 +94,8 @@ createdBy,approvedBy,createdAt}`
 * `GET /system/updates` `[any]` → `{available:[{version,publishedAt,notes}], history:[UpdateRecord]}`
   `UpdateRecord={id,from,to,status:'succeeded'|'rolled_back'|'failed',phase,error,startedAt,finishedAt,dbBackup}`
 * `POST /system/update` `[admin]` `{version}` → forwards to supervisor, `202 {accepted:true}`
+* `POST /system/rollback` `[admin]` `{updateId}` → forwards to supervisor rollback to the version before that
+  update, `202 {accepted:true}`
 * `POST /system/drain` (supervisor token) `{drain:true|false}` → `{draining, activeWorkers}`
 
 ## Notifications / push
