@@ -25,5 +25,10 @@ test-go:
 test-js:
 	pnpm -r test
 
+# Real-binary e2e scenarios with an isolated temp RHYMEHUB_HOME (never ~/.rhymehub, never launchctl).
+e2e:
+	bash scripts/e2e/selfupdate.sh
+	bash scripts/e2e/scenarios-abc.sh
+
 clean:
 	rm -rf bin out

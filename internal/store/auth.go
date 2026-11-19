@@ -150,6 +150,20 @@ func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	})
 }
 
+// DeleteUserSessions removes every session of a user (password reset, disable) and returns how many.
+func (s *Store) DeleteUserSessions(ctx context.Context, userID string) (int64, error) {
+	var n int64
+	err := s.writeTx(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
+		if err != nil {
+			return err
+		}
+		n, err = res.RowsAffected()
+		return err
+	})
+	return n, err
+}
+
 // DeleteExpiredSessions removes sessions that expired before now and returns how many were removed.
 func (s *Store) DeleteExpiredSessions(ctx context.Context, now time.Time) (int64, error) {
 	var n int64

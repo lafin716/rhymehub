@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/lafin716/rhymehub/internal/redact"
 )
 
 // ErrConflict is returned by Merge when the branch conflicts with the base. The base is left clean.
@@ -31,7 +33,7 @@ var taskIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
 func runGit(ctx context.Context, dir string, args ...string) (string, int, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = gitEnv()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -401,3 +403,12 @@ func Discover(root string, depth int) ([]string, error) {
 	}
 	return out, nil
 }
+
+// gitEnv is the environment for every git call: the scrubbed allowlist (repo hooks and config run with it, so
+// server credentials must not reach them) plus SSH_AUTH_SOCK so ssh remotes still clone, and no prompts.
+func gitEnv() []string {
+	return append(redact.ScrubEnv(os.Environ(), []string{"SSH_AUTH_SOCK"}), "GIT_TERMINAL_PROMPT=0")
+}
+
+// GitEnv exposes gitEnv to other packages that run git directly.
+func GitEnv() []string { return gitEnv() }

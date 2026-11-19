@@ -159,7 +159,7 @@ type createProjectIn struct {
 
 // touchesPolicy reports whether the create body sets any policy field, which requires the maintainer role.
 func (in createProjectIn) touchesPolicy() bool {
-	return in.TestCmd != "" || in.ReleaseStrategy != "" || in.ReleaseCmd != "" ||
+	return in.BuildCmd != "" || in.TestCmd != "" || in.ReleaseStrategy != "" || in.ReleaseCmd != "" ||
 		in.AutoApprove || in.AutoRelease || len(in.AllowedTools) > 0
 }
 
@@ -389,7 +389,7 @@ type patchProjectIn struct {
 
 // touchesPolicy reports whether the patch sets any policy field (these require the maintainer role).
 func (in patchProjectIn) touchesPolicy() bool {
-	return in.TestCmd != nil || in.ReleaseStrategy != nil || in.ReleaseCmd != nil ||
+	return in.BuildCmd != nil || in.TestCmd != nil || in.ReleaseStrategy != nil || in.ReleaseCmd != nil ||
 		in.AutoApprove != nil || in.AutoRelease != nil || in.AllowedTools != nil
 }
 

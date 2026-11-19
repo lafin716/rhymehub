@@ -275,27 +275,29 @@ e2e_install_version() {
 }
 
 # e2e_repack_broken SRC_TARBALL VERSION MODE OUT_TARBALL builds a broken core from a real tarball.
-# The shell stub keeps `version` and `migrate` working (so the supervisor's pre-switch checks pass)
-# and replaces `serve`:
-#   exit  serve exits 1 immediately
-#   hang  serve never listens (sleeps), so the health check times out
+# The shell stub keeps `version` working (so the supervisor's pre-switch check passes) and
+# replaces one subcommand, depending on MODE:
+#   exit     serve exits 1 immediately
+#   hang     serve never listens (sleeps), so the health check times out
+#   migrate  migrate exits 3 (the migration-failure exit code); serve is never reached
 e2e_repack_broken() {
   local src="$1" version="$2" mode="$3" out="$4"
-  local stage="$E2E_WORK/broken-$version-$mode" serve_line
+  local stage="$E2E_WORK/broken-$version-$mode" case_body
   rm -rf "$stage"
   mkdir -p "$stage"
   tar -xzf "$src" -C "$stage" || return 1
   mv "$stage/bin/rhymehub" "$stage/bin/rhymehub.real" || return 1
   case "$mode" in
-    exit) serve_line="echo \"rhymehub $version: serve failed at startup (e2e broken build)\" >&2; exit 1" ;;
-    hang) serve_line='exec sleep 3600' ;;
+    exit) case_body="  serve) echo \"rhymehub $version: serve failed at startup (e2e broken build)\" >&2; exit 1 ;;" ;;
+    hang) case_body="  serve) exec sleep 3600 ;;" ;;
+    migrate) case_body="  migrate) echo \"rhymehub $version: migration failed (e2e broken build)\" >&2; exit 3 ;;" ;;
     *) echo "unknown broken mode: $mode" >&2; return 1 ;;
   esac
   cat >"$stage/bin/rhymehub" <<EOF
 #!/bin/sh
-# E2E broken build ($mode). Only serve is replaced; everything else runs the real binary.
+# E2E broken build ($mode). Only one subcommand is replaced; everything else runs the real binary.
 case "\$1" in
-  serve) $serve_line ;;
+$case_body
   *) exec "\$(dirname "\$0")/rhymehub.real" "\$@" ;;
 esac
 EOF
@@ -323,11 +325,20 @@ e2e_tamper_feed_artifact() {
   printf 'x' >>"$E2E_WORK/feed/artifacts/$name"
 }
 
-# e2e_tamper_signature VERSION changes the first character of the artifact signature in the manifest.
+# e2e_tamper_signature VERSION changes the first character of each artifact signature in the manifest.
+# The replacement always differs from the original, so the signature is guaranteed to be invalid.
 e2e_tamper_signature() {
-  local tmp="$E2E_WORK/manifest.tmp"
-  jq --arg v "$1" \
-    '(.releases[] | select(.version == $v) | .artifacts[].signature) |= ("A" + .[1:])' \
+  local tmp="$E2E_WORK/manifest.tmp" sig first
+  sig="$(jq -r --arg v "$1" '[.releases[] | select(.version == $v) | .artifacts[].signature] | first // empty' \
+    "$E2E_WORK/feed/manifest.json")"
+  if [[ -z "$sig" ]]; then
+    E2E_LAST_DETAIL="no signature for $1 in the feed manifest"
+    return 1
+  fi
+  first="${sig:0:1}"
+  if [[ "$first" == "A" ]]; then first="B"; else first="A"; fi
+  jq --arg v "$1" --arg f "$first" \
+    '(.releases[] | select(.version == $v) | .artifacts[].signature) |= ($f + .[1:])' \
     "$E2E_WORK/feed/manifest.json" >"$tmp" && mv "$tmp" "$E2E_WORK/feed/manifest.json"
 }
 
@@ -343,11 +354,13 @@ e2e_start_feed() {
 
 # --- config and supervisor ---
 
-# e2e_write_config points the home at this run's core port and feed.
+# e2e_write_config points the home at this run's core port, supervisor port, and feed. The supervisor
+# address must match the supervisor's --addr, otherwise the core's supervisor client uses the default 7781.
 e2e_write_config() {
   local tmp="$E2E_WORK/config.tmp"
-  jq --arg listen "$E2E_CORE_ADDR" --arg feed "http://$E2E_FEED_ADDR/manifest.json" \
-    '.listen = $listen | .updateFeed = $feed' "$E2E_HOME/config.json" >"$tmp" && mv "$tmp" "$E2E_HOME/config.json"
+  jq --arg listen "$E2E_CORE_ADDR" --arg sup "$E2E_SUPERVISOR_ADDR" --arg feed "http://$E2E_FEED_ADDR/manifest.json" \
+    '.listen = $listen | .supervisorAddr = $sup | .updateFeed = $feed' "$E2E_HOME/config.json" >"$tmp" \
+    && mv "$tmp" "$E2E_HOME/config.json"
 }
 
 # e2e_start_supervisor runs the supervisor in the foreground-mode process in the background; it
@@ -374,17 +387,23 @@ e2e_start_stream() {
       echo $! >"$pidf"
       wait $! 2>/dev/null
       printf '%s status=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(head -n 1 "$hdr" 2>/dev/null | tr -d '\r')" >>"$log"
+      : >"$hdr"
       sleep 0.5
     done
   ) &
   E2E_STREAM_PID=$!
 }
 
-# e2e_stream_ok_count counts connections that answered 200 (HTTP/1.0 or HTTP/1.1).
+# e2e_stream_ok_count counts connections that answered 200 (HTTP/1.0 or HTTP/1.1). Closed connections are
+# counted from stream.log; the currently open one (still streaming, so not yet logged) is read from
+# stream.hdr, which is cleared right after each connection is logged.
 e2e_stream_ok_count() {
-  local n
+  local n cur=0
   n="$(grep -c 'status=HTTP/1\.[01] 200' "$E2E_WORK/stream.log" 2>/dev/null || true)"
-  printf '%s' "${n:-0}"
+  if grep -q 'HTTP/1\.[01] 200' "$E2E_WORK/stream.hdr" 2>/dev/null; then
+    cur=1
+  fi
+  printf '%s' $(( ${n:-0} + cur ))
 }
 
 # --- cleanup ---

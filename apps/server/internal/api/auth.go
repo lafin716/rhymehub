@@ -396,6 +396,15 @@ func (s *Server) handlePatchUser(w http.ResponseWriter, r *http.Request, p *prin
 		writeDomainError(w, err)
 		return
 	}
+	// A password reset or disable ends every existing session, so a stolen cookie stops working.
+	if in.Password != nil || (in.Disabled != nil && *in.Disabled) {
+		n, err := s.st.DeleteUserSessions(r.Context(), u.ID)
+		if err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		changes["sessionsRevoked"] = n
+	}
 	s.audit(r, &p.User, "user.update", "user", u.ID, changes)
 	writeJSON(w, http.StatusOK, publicUser(u))
 }

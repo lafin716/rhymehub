@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/lafin716/rhymehub/internal/redact"
+	"github.com/lafin716/rhymehub/internal/workspace"
 )
 
 // outputTailLimit caps the test output kept in tasks.test_output and the test_result payload.
@@ -21,7 +21,7 @@ const outputTailLimit = 16 << 10
 func gitOut(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = workspace.GitEnv()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

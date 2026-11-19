@@ -141,6 +141,12 @@ func TestProjectRoleChecks(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("maintainer patch policy: %d %s", rec.Code, rec.Body.String())
 	}
+	// buildCmd is a command field too, so it is maintainer-only.
+	rec = e.do(http.MethodPatch, "/api/v1/projects/"+made.ID, map[string]any{"buildCmd": "make build"},
+		withCookie(dev), withCSRF())
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("developer patch buildCmd: %d %s", rec.Code, rec.Body.String())
+	}
 
 	// Non-policy patch is allowed for developers.
 	rec = e.do(http.MethodPatch, "/api/v1/projects/"+made.ID, map[string]any{"name": "renamed"},
