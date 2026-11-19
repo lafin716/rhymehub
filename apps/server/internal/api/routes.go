@@ -32,9 +32,11 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/users", s.need(domain.RoleAdmin, s.handleCreateUser))
 	mux.HandleFunc("PATCH /api/v1/users/{id}", s.need(domain.RoleAdmin, s.handlePatchUser))
 
-	// Projects (read-only for now; create/patch/keys are not implemented yet).
-	mux.HandleFunc("GET /api/v1/projects", s.need("", s.handleListProjects))
-	mux.HandleFunc("GET /api/v1/projects/{id}", s.need("", s.handleGetProject))
+	// Projects, releases and audit (routes_projects.go).
+	s.projectRoutes(mux)
+
+	// Agents, system, push and notifications (routes_system.go).
+	s.systemRoutes(mux)
 
 	// Requests (inbox).
 	mux.HandleFunc("GET /api/v1/requests", s.need("", s.handleListRequests))

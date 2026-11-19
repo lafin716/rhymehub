@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/lafin716/rhymehub/internal/domain"
 )
@@ -501,5 +502,44 @@ func TestGetTaskNotFound(t *testing.T) {
 	s := newTestStore(t)
 	if _, err := s.GetTask(context.Background(), "tsk_nope"); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestNotificationFeedAndRead(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	a, _, err := st.EnqueueNotification(ctx, domain.Notification{EventKey: "k1", Kind: "task", Title: "one"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _, err := st.EnqueueNotification(ctx, domain.Notification{EventKey: "k2", Kind: "task", Title: "two"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := st.ListNotifications(ctx, 10)
+	if err != nil || len(list) != 2 || list[0].ID != b.ID {
+		t.Fatalf("list = %+v err=%v", list, err)
+	}
+	n, err := st.MarkNotificationsRead(ctx, []string{a.ID, "ntf_missing"}, time.Now())
+	if err != nil || n != 1 {
+		t.Fatalf("mark read n=%d err=%v", n, err)
+	}
+	if n, _ := st.MarkNotificationsRead(ctx, []string{a.ID}, time.Now()); n != 0 {
+		t.Fatalf("second mark changed %d rows", n)
+	}
+	list, _ = st.ListNotifications(ctx, 10)
+	if list[1].ReadAt == nil || list[0].ReadAt != nil {
+		t.Fatalf("readAt not applied: %+v", list)
+	}
+	u, err := st.CreateUser(ctx, domain.User{Username: "pushuser", PasswordHash: "x", Role: domain.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpsertPushSubscription(ctx, domain.PushSubscription{UserID: u.ID, Endpoint: "https://e/1", P256DH: "p", Auth: "a"}); err != nil {
+		t.Fatal(err)
+	}
+	subs, err := st.ListAllPushSubscriptions(ctx)
+	if err != nil || len(subs) != 1 {
+		t.Fatalf("subs=%v err=%v", subs, err)
 	}
 }

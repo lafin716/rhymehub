@@ -47,6 +47,16 @@ type Options struct {
 	// Paths locates the data directory. SDK attachments are stored under Paths.AttachmentsDir().
 	// A zero Paths disables SDK attachments (requests carrying attachments are refused with 503).
 	Paths config.Paths
+	// Scheduler controls drain and concurrency limits. Nil: drain only toggles the API flag, limits are 503.
+	Scheduler SchedulerControl
+	// Agents lists agent CLIs for GET /agents. Nil: an empty list.
+	Agents AgentDirectory
+	// Notifier powers push and test notifications. Nil: push endpoints return 503.
+	Notifier Notifier
+	// ProjectReleaser runs manual releases. Nil: POST /projects/{id}/releases returns 503.
+	ProjectReleaser ProjectReleaser
+	// SupervisorToken authenticates the supervisor on POST /system/drain. Empty disables that endpoint (401).
+	SupervisorToken string
 }
 
 // Server holds the shared state for all handlers.
@@ -66,6 +76,11 @@ type Server struct {
 	sdkLimit   *rateLimiter
 	draining   bool
 	drainMu    sync.RWMutex
+	sched      SchedulerControl
+	agents     AgentDirectory
+	notifier   Notifier
+	projRel    ProjectReleaser
+	supToken   string
 }
 
 // New builds a Server. It validates the TLS allow-list up front so misconfiguration fails at startup.
@@ -88,6 +103,11 @@ func New(opts Options) (*Server, error) {
 		supervisor: opts.Supervisor,
 		canceller:  opts.Canceller,
 		paths:      opts.Paths,
+		sched:      opts.Scheduler,
+		agents:     opts.Agents,
+		notifier:   opts.Notifier,
+		projRel:    opts.ProjectReleaser,
+		supToken:   opts.SupervisorToken,
 		loginLimit: newRateLimiter(5, time.Minute),
 		sdkLimit:   newRateLimiter(sdkRatePerMinute, time.Minute),
 	}

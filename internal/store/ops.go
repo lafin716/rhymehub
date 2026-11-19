@@ -403,3 +403,71 @@ func (s *Store) SetSetting(ctx context.Context, key, value string) error {
 		return err
 	})
 }
+
+// ListAllPushSubscriptions returns every Web Push subscription across users, oldest first.
+func (s *Store) ListAllPushSubscriptions(ctx context.Context) ([]domain.PushSubscription, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, endpoint, p256dh, auth, created_at
+		FROM push_subscriptions ORDER BY created_at, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.PushSubscription
+	for rows.Next() {
+		var ps domain.PushSubscription
+		var created string
+		if err := rows.Scan(&ps.ID, &ps.UserID, &ps.Endpoint, &ps.P256DH, &ps.Auth, &created); err != nil {
+			return nil, err
+		}
+		if ps.CreatedAt, err = parseTime(created); err != nil {
+			return nil, err
+		}
+		out = append(out, ps)
+	}
+	return out, rows.Err()
+}
+
+// ListNotifications returns the most recent notifications (any delivery status), newest first.
+// Notifications are global in v0.1: every user sees the same feed.
+func (s *Store) ListNotifications(ctx context.Context, limit int) ([]domain.Notification, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT `+notificationCols+` FROM notifications
+		ORDER BY created_at DESC, id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.Notification{}
+	for rows.Next() {
+		n, err := scanNotification(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// MarkNotificationsRead sets read_at on the given notifications that are still unread. Unknown ids are ignored.
+// It returns the number of rows changed.
+func (s *Store) MarkNotificationsRead(ctx context.Context, ids []string, at time.Time) (int, error) {
+	n := 0
+	err := s.writeTx(ctx, func(tx *sql.Tx) error {
+		for _, id := range ids {
+			res, err := tx.ExecContext(ctx, `UPDATE notifications SET read_at = ? WHERE id = ? AND read_at IS NULL`,
+				fmtTime(at), id)
+			if err != nil {
+				return err
+			}
+			c, err := res.RowsAffected()
+			if err != nil {
+				return err
+			}
+			n += int(c)
+		}
+		return nil
+	})
+	return n, err
+}
