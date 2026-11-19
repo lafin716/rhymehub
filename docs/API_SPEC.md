@@ -65,7 +65,9 @@ allowedTools,approvedBy,releaseId}`
 * `GET /tasks` `[any]` `?projectId&state&active=1&limit`
 * `POST /tasks` `[dev]` `{projectId,prompt,title?,agent?,model?,priority?}` → `Task` (state QUEUED)
 * `GET /tasks/{id}`; `GET /tasks/{id}/events?after=<seq>&limit=500` → `{events:[TaskEvent]}`
-  `TaskEvent = {id,taskId,seq,type,payload,createdAt}`
+  `TaskEvent = {id,taskId,seq,type,payload,createdAt}`. `seq` is the global, monotonically increasing event id
+  (`task_events.id`), so it also orders events within one task. `afterSeq` is accepted as an alias of `after`;
+  both take that id. SSE `id:` uses the same value.
 * `POST /tasks/{id}/messages` `[dev]` `{text}` – follow-up turn (REVIEW_READY|FAILED|WAITING_INPUT → QUEUED)
 * `POST /tasks/{id}/answer` `[dev]` `{text}` – answer pending question (WAITING_INPUT → QUEUED)
 * `POST /tasks/{id}/permission` `[dev]` `{allow:bool}` – WAITING_APPROVAL → QUEUED (allow adds denied tools to
