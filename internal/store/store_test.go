@@ -382,8 +382,9 @@ func TestClaimNextQueuedPriorityOrder(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	p := newProject(t, s, 10)
-	low := newTask(t, s, p.ID, "claude", 3)
-	high := newTask(t, s, p.ID, "claude", 1)
+	// DATA_MODEL: 0 low .. 4 urgent; ARCHITECTURE §scheduler claims priority DESC, created_at ASC.
+	low := newTask(t, s, p.ID, "claude", 1)
+	high := newTask(t, s, p.ID, "claude", 3)
 	queue(t, s, low.ID)
 	queue(t, s, high.ID)
 

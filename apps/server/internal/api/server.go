@@ -44,6 +44,9 @@ type Options struct {
 	Supervisor Supervisor
 	// Canceller stops worker processes on cancel. Nil means only the task state is changed.
 	Canceller Canceller
+	// Paths locates the data directory. SDK attachments are stored under Paths.AttachmentsDir().
+	// A zero Paths disables SDK attachments (requests carrying attachments are refused with 503).
+	Paths config.Paths
 }
 
 // Server holds the shared state for all handlers.
@@ -58,7 +61,9 @@ type Server struct {
 	releaser   Releaser
 	supervisor Supervisor
 	canceller  Canceller
+	paths      config.Paths
 	loginLimit *rateLimiter
+	sdkLimit   *rateLimiter
 	draining   bool
 	drainMu    sync.RWMutex
 }
@@ -82,7 +87,9 @@ func New(opts Options) (*Server, error) {
 		releaser:   opts.Releaser,
 		supervisor: opts.Supervisor,
 		canceller:  opts.Canceller,
+		paths:      opts.Paths,
 		loginLimit: newRateLimiter(5, time.Minute),
+		sdkLimit:   newRateLimiter(sdkRatePerMinute, time.Minute),
 	}
 	if s.log == nil {
 		s.log = slog.Default()

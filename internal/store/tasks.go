@@ -498,7 +498,7 @@ func (s *Store) ClaimNextQueued(ctx context.Context, lim ClaimLimits) (domain.Ta
 		}
 		queued, err := tx.QueryContext(ctx, `SELECT t.id, t.project_id, t.agent, p.max_concurrent
 			FROM tasks t JOIN projects p ON p.id = t.project_id
-			WHERE t.state = ? ORDER BY t.priority, t.created_at, t.id`, string(domain.StateQueued))
+			WHERE t.state = ? ORDER BY t.priority DESC, t.created_at, t.id`, string(domain.StateQueued))
 		if err != nil {
 			return err
 		}

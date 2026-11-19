@@ -26,13 +26,6 @@ type sseTaskEvent struct {
 	ProjectID string `json:"projectId"`
 }
 
-// latestEventID returns the highest global task_events.id, or 0 when there are none.
-func (s *Server) latestEventID(ctx context.Context) (int64, error) {
-	var id int64
-	err := s.st.DB().QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM task_events").Scan(&id)
-	return id, err
-}
-
 // writeSSE writes one SSE message. An empty id or event leaves that field out.
 func writeSSE(w http.ResponseWriter, id int64, event string, data any) error {
 	body, err := json.Marshal(data)
@@ -70,7 +63,7 @@ func (s *Server) handleEventStream(w http.ResponseWriter, r *http.Request, _ *pr
 		}
 		cursor = n
 	} else {
-		head, err := s.latestEventID(ctx)
+		head, err := s.st.LatestEventID(ctx)
 		if err != nil {
 			writeDomainError(w, err)
 			return

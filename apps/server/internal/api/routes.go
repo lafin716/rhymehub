@@ -60,6 +60,14 @@ func (s *Server) routes(mux *http.ServeMux) {
 	// Live updates (SSE).
 	mux.HandleFunc("GET /api/v1/events/stream", s.need("", s.handleEventStream))
 
+	// Managed-app SDK. Authenticated by X-Rhymehub-Key only, never by session or bearer token.
+	mux.HandleFunc("OPTIONS /api/v1/sdk/{rest...}", s.handleSDKPreflight)
+	mux.HandleFunc("POST /api/v1/sdk/requests", s.handleSDKCreateRequest)
+	mux.HandleFunc("GET /api/v1/sdk/requests", s.handleSDKListRequests)
+	mux.HandleFunc("GET /api/v1/sdk/requests/{id}", s.handleSDKGetRequest)
+	mux.HandleFunc("POST /api/v1/sdk/requests/{id}/answer", s.handleSDKAnswer)
+	mux.HandleFunc("GET /api/v1/sdk/releases/latest", s.handleSDKLatestRelease)
+
 	// Unknown API paths get a JSON 404 instead of the dashboard HTML.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "no such endpoint")

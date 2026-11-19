@@ -337,10 +337,15 @@ func TestRequestTriageAndTaskCreation(t *testing.T) {
 		t.Fatalf("new request: %v %s", err, rec.Body.String())
 	}
 
-	rec = e.do(http.MethodPatch, "/api/v1/requests/"+rq.ID, map[string]any{"priority": 3},
+	rec = e.do(http.MethodPatch, "/api/v1/requests/"+rq.ID, map[string]any{"priority": 9},
 		withCookie(admin), withCSRF())
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("priority patch must be refused: %d", rec.Code)
+		t.Fatalf("out-of-range priority patch must be refused: %d", rec.Code)
+	}
+	rec = e.do(http.MethodPatch, "/api/v1/requests/"+rq.ID, map[string]any{"priority": 3},
+		withCookie(admin), withCSRF())
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"priority":3`) {
+		t.Fatalf("priority patch: %d %s", rec.Code, rec.Body.String())
 	}
 	rec = e.do(http.MethodPatch, "/api/v1/requests/"+rq.ID, map[string]any{"status": "triaged"},
 		withCookie(admin), withCSRF())

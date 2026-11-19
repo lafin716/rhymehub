@@ -88,7 +88,7 @@ type createRequestBody struct {
 	Type        domain.RequestType `json:"type"`
 	Title       string             `json:"title"`
 	Description string             `json:"description"`
-	Priority    int                `json:"priority"`
+	Priority    *int               `json:"priority"`
 }
 
 func (s *Server) handleCreateRequest(w http.ResponseWriter, r *http.Request, p *principal) {
@@ -100,8 +100,9 @@ func (s *Server) handleCreateRequest(w http.ResponseWriter, r *http.Request, p *
 		writeError(w, http.StatusBadRequest, "bad_request", "projectId, type and description are required")
 		return
 	}
-	if body.Priority < 0 || body.Priority > 10 {
-		writeError(w, http.StatusBadRequest, "bad_request", "priority must be between 0 and 10")
+	priority, ok := resolvePriority(body.Priority)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "bad_request", "priority must be between 0 and 4")
 		return
 	}
 	ctx := r.Context()
@@ -127,7 +128,7 @@ func (s *Server) handleCreateRequest(w http.ResponseWriter, r *http.Request, p *
 	}
 	rq, err := s.st.CreateRequest(ctx, domain.Request{
 		ProjectID: proj.ID, Source: source, Type: body.Type, Title: title,
-		Description: body.Description, Priority: body.Priority, ReporterUserID: p.User.ID,
+		Description: body.Description, Priority: priority, ReporterUserID: p.User.ID,
 	})
 	if err != nil {
 		writeDomainError(w, err)
@@ -159,25 +160,29 @@ type patchRequestBody struct {
 	Status   *string `json:"status"`
 }
 
-// handlePatchRequest supports triage only: new -> triaged, or new/triaged -> rejected.
-// Priority changes are refused because the store has no update for them yet.
+// handlePatchRequest updates triage fields. priority (0 low .. 4 urgent, DATA_MODEL) and status (triaged or
+// rejected) are both optional but at least one is required. Everything is validated before any write, so a
+// rejected status never leaves a changed priority behind. Status moves: new -> triaged, or new/triaged -> rejected.
 func (s *Server) handlePatchRequest(w http.ResponseWriter, r *http.Request, p *principal) {
 	var body patchRequestBody
 	if !decodeJSON(w, r, &body, maxBodyBytes) {
 		return
 	}
-	if body.Priority != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "priority updates are not supported yet")
+	if body.Priority == nil && body.Status == nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "priority or status is required")
 		return
 	}
-	if body.Status == nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "status is required")
+	if body.Priority != nil && (*body.Priority < 0 || *body.Priority > 4) {
+		writeError(w, http.StatusBadRequest, "bad_request", "priority must be between 0 and 4")
 		return
 	}
-	next := domain.RequestStatus(*body.Status)
-	if next != domain.RequestTriaged && next != domain.RequestRejected {
-		writeError(w, http.StatusBadRequest, "bad_request", "status may only be set to triaged or rejected")
-		return
+	var next domain.RequestStatus
+	if body.Status != nil {
+		next = domain.RequestStatus(*body.Status)
+		if next != domain.RequestTriaged && next != domain.RequestRejected {
+			writeError(w, http.StatusBadRequest, "bad_request", "status may only be set to triaged or rejected")
+			return
+		}
 	}
 	id := r.PathValue("id")
 	ctx := r.Context()
@@ -186,21 +191,32 @@ func (s *Server) handlePatchRequest(w http.ResponseWriter, r *http.Request, p *p
 		writeDomainError(w, err)
 		return
 	}
-	allowed := rq.Status == domain.RequestNew || (next == domain.RequestRejected && rq.Status == domain.RequestTriaged)
-	if !allowed {
-		writeError(w, http.StatusConflict, "conflict", "request is already "+string(rq.Status))
-		return
+	if body.Status != nil {
+		allowed := rq.Status == domain.RequestNew || (next == domain.RequestRejected && rq.Status == domain.RequestTriaged)
+		if !allowed {
+			writeError(w, http.StatusConflict, "conflict", "request is already "+string(rq.Status))
+			return
+		}
 	}
-	if err := s.st.SetRequestStatus(ctx, id, next, ""); err != nil {
-		writeDomainError(w, err)
-		return
+	if body.Priority != nil {
+		if err := s.st.SetRequestPriority(ctx, id, *body.Priority); err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		s.audit(r, &p.User, "request.priority", "request", id, map[string]any{"priority": *body.Priority})
+	}
+	if body.Status != nil {
+		if err := s.st.SetRequestStatus(ctx, id, next, ""); err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		s.audit(r, &p.User, "request.triage", "request", id, map[string]any{"status": next})
 	}
 	updated, err := s.st.GetRequest(ctx, id)
 	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
-	s.audit(r, &p.User, "request.triage", "request", id, map[string]any{"status": next})
 	writeJSON(w, http.StatusOK, requestView{Request: updated})
 }
 
@@ -283,4 +299,18 @@ func (s *Server) requestStatusFor(ctx context.Context, id string) (domain.Reques
 		return "", err
 	}
 	return rq.Status, nil
+}
+
+// defaultPriority is the DATA_MODEL default (2 = normal); priorities run 0 low .. 4 urgent.
+const defaultPriority = 2
+
+// resolvePriority applies the default for an omitted priority and validates the 0..4 range.
+func resolvePriority(p *int) (int, bool) {
+	if p == nil {
+		return defaultPriority, true
+	}
+	if *p < 0 || *p > 4 {
+		return 0, false
+	}
+	return *p, true
 }

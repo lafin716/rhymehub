@@ -271,7 +271,7 @@ type createTaskBody struct {
 	Title     string `json:"title"`
 	Agent     string `json:"agent"`
 	Model     string `json:"model"`
-	Priority  int    `json:"priority"`
+	Priority  *int   `json:"priority"`
 }
 
 func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request, p *principal) {
@@ -281,6 +281,11 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request, p *pri
 	}
 	if body.ProjectID == "" || !validText(body.Prompt, maxPromptBytes) {
 		writeError(w, http.StatusBadRequest, "bad_request", "projectId and a non-empty prompt are required")
+		return
+	}
+	priority, ok := resolvePriority(body.Priority)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "bad_request", "priority must be between 0 and 4")
 		return
 	}
 	if s.Draining() {
@@ -298,7 +303,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request, p *pri
 		title = firstLine(body.Prompt, 120)
 	}
 	t, err := s.enqueueTask(ctx, domain.Task{
-		Title: title, Prompt: body.Prompt, Agent: body.Agent, Model: body.Model, Priority: body.Priority,
+		Title: title, Prompt: body.Prompt, Agent: body.Agent, Model: body.Model, Priority: priority,
 		CreatedBy: p.User.ID,
 	}, proj)
 	if err != nil {
