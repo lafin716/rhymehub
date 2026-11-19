@@ -1,0 +1,6 @@
+packages:
+  - apps/web
+  - packages/shared
+  - packages/sdk-typescript
+  - packages/sdk-react
+  - examples/*
