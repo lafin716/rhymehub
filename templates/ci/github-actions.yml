@@ -1,0 +1,29 @@
+# RhymeHub CI workflow, written by `rhymehub init`.
+# It runs the test command stored in .rhymehub/project.json (field "testCmd"). Edit that field, not this
+# file, to change what is tested. The workflow never reads secrets and never runs request text.
+name: rhymehub-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Add the toolchain your project needs here (for example actions/setup-go or actions/setup-node).
+
+      - name: Run project test command
+        run: |
+          set -euo pipefail
+          TEST_CMD="$(jq -r '.testCmd // empty' .rhymehub/project.json)"
+          if [ -z "$TEST_CMD" ]; then
+            echo "no testCmd in .rhymehub/project.json; nothing to run" >&2
+            exit 1
+          fi
+          bash -c "$TEST_CMD"

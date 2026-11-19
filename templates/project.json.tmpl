@@ -1,0 +1,14 @@
+{
+  "name": {{ json .Name }},
+  "server": {{ json .ServerURL }},
+  "stack": {{ json .Stack }},
+  "defaultBranch": {{ json .DefaultBranch }},
+  "testCmd": {{ json .TestCmd }},
+  "releaseStrategy": {{ json .ReleaseStrategy }},
+  "defaultAgent": {{ json .DefaultAgent }},
+  "update": {
+    "channel": {{ json .UpdateChannel }},
+    "manifestUrl": {{ json .UpdateManifestURL }}
+  },
+  "generatedBy": "rhymehub init"
+}
